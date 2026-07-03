@@ -2782,6 +2782,47 @@ func TestRPILoop_CompileCadence_RunsOncePerInterval(t *testing.T) {
 	}
 }
 
+func TestRunCompileProducerTick_DefragUsesSupportedFlags(t *testing.T) {
+	prevRunner := loopCommandRunner
+	defer func() { loopCommandRunner = prevRunner }()
+
+	tmpDir := t.TempDir()
+	var calls []string
+	loopCommandRunner = func(_ string, _ time.Duration, name string, args ...string) error {
+		calls = append(calls, name+" "+strings.Join(args, " "))
+		return nil
+	}
+
+	cfg := rpiLoopSupervisorConfig{
+		AOCommand:       "ao",
+		CommandTimeout:  time.Minute,
+		CompileSince:    "12h",
+		CompileDefrag:   true,
+		CompileInterval: 0,
+	}
+	if err := runCompileProducerTick(tmpDir, cfg); err != nil {
+		t.Fatalf("runCompileProducerTick returned error: %v", err)
+	}
+
+	expected := []string{
+		"ao mine --emit-work-items --since 12h --quiet",
+		"ao defrag --prune --dedup --quiet",
+	}
+	if len(calls) != len(expected) {
+		t.Fatalf("expected calls %v, got %v", expected, calls)
+	}
+	for i := range expected {
+		if calls[i] != expected[i] {
+			t.Fatalf("call %d = %q, want %q; all calls: %v", i, calls[i], expected[i], calls)
+		}
+	}
+	for _, call := range calls {
+		if strings.Contains(call, "--oscillation-sweep") {
+			t.Fatalf("unsupported defrag flag leaked into compile producer call: %v", calls)
+		}
+	}
+}
+
 func TestRPILoop_CompileCadence_ProducerFailure_ContinuePolicy(t *testing.T) {
 	clearRPIEnv(t)
 	prevGlobals := snapshotLoopSupervisorGlobals()

@@ -305,7 +305,7 @@ func runCompileProducerTick(cwd string, cfg rpiLoopSupervisorConfig) error {
 		return nil
 	}
 
-	defragArgs := []string{"defrag", "--prune", "--dedup", "--oscillation-sweep", "--quiet"}
+	defragArgs := []string{"defrag", "--prune", "--dedup", "--quiet"}
 	fmt.Printf("Compile producer defrag: %s %s\n", aoCommand, strings.Join(defragArgs, " "))
 	if err := loopCommandRunner(cwd, cfg.CommandTimeout, aoCommand, defragArgs...); err != nil {
 		return fmt.Errorf("compile defrag sweep failed: %w", err)
